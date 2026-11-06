@@ -1,0 +1,845 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Sesiones 12 y 13 · Integración Numérica</title>
+
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;700&family=Outfit:wght@300;400;600;800&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+<style>
+  :root {
+    --bg-main: #0b0f19;
+    --bg-card: #111827;
+    --bg-input: #1f2937;
+    --border: #374151;
+    --accent-primary: #06b6d4;
+    --accent-secondary: #8b5cf6;
+    --accent-success: #10b981;
+    --accent-warning: #f59e0b;
+    --accent-danger: #ef4444;
+    --text-main: #f3f4f6;
+    --text-muted: #9ca3af;
+    --font-display: 'Outfit', sans-serif;
+    --font-mono: 'JetBrains Mono', monospace;
+  }
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  html { scroll-behavior: smooth; }
+
+  body {
+    font-family: var(--font-display);
+    background-color: var(--bg-main);
+    color: var(--text-main);
+    padding: 2rem;
+    min-height: 100vh;
+    background-image: 
+      radial-gradient(circle at 10% 20%, rgba(139, 92, 246, 0.08) 0%, transparent 40%),
+      radial-gradient(circle at 90% 80%, rgba(6, 182, 212, 0.08) 0%, transparent 40%);
+  }
+
+  .container { max-width: 1400px; margin: 0 auto; }
+
+  header {
+    display: flex; justify-content: space-between; align-items: flex-end;
+    margin-bottom: 2.5rem; border-bottom: 1px solid var(--border); padding-bottom: 1.5rem;
+  }
+  h1 {
+    font-size: 2.2rem; font-weight: 800;
+    background: linear-gradient(to right, var(--accent-primary), var(--accent-secondary));
+    -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+  }
+  .subtitle {
+    font-family: var(--font-mono); font-size: 0.85rem; color: var(--text-muted);
+    text-transform: uppercase; letter-spacing: 0.1em; margin-top: 0.5rem;
+  }
+
+  /* Paneles y Tarjetas */
+  .panel {
+    background: var(--bg-card); border: 1px solid var(--border); border-radius: 8px;
+    padding: 2rem; position: relative; margin-bottom: 2rem;
+  }
+  .panel::before {
+    content: ''; position: absolute; top: 0; left: 0; right: 0; height: 2px;
+    background: linear-gradient(90deg, var(--accent-primary), var(--accent-secondary));
+  }
+  .panel-title {
+    font-size: 1.25rem; font-weight: 700; color: var(--text-main);
+    margin-bottom: 1rem; display: flex; align-items: center; gap: 0.75rem;
+  }
+  .problem-info {
+    background: rgba(6, 182, 212, 0.05); border-left: 3px solid var(--accent-primary);
+    padding: 1rem 1.5rem; border-radius: 0 6px 6px 0; margin-bottom: 2rem;
+    font-size: 0.9rem; line-height: 1.7;
+  }
+  .problem-info code {
+    background: rgba(0,0,0,0.3); padding: 0.2rem 0.5rem; border-radius: 4px;
+    font-family: var(--font-mono); color: var(--accent-primary); font-size: 0.85rem;
+  }
+
+  /* Inputs y Botones */
+  .grid-in { display: grid; grid-template-columns: 2fr 1fr 1fr 1fr; gap: 1.5rem; align-items: start; }
+  @media(max-width: 900px) { .grid-in { grid-template-columns: 1fr 1fr; } .grid-in .field:first-child { grid-column: 1 / -1; } }
+  
+  .field label {
+    display: block; font-family: var(--font-mono); font-size: 0.75rem;
+    color: var(--text-muted); margin-bottom: 0.4rem; text-transform: uppercase;
+  }
+  input[type=text], input[type=number], select {
+    width: 100%; background: var(--bg-input); border: 1px solid var(--border);
+    color: var(--text-main); padding: 0.75rem; border-radius: 6px;
+    font-family: var(--font-mono); font-size: 0.9rem; transition: all 0.2s;
+  }
+  input:focus, select:focus { outline: none; border-color: var(--accent-primary); box-shadow: 0 0 0 3px rgba(6,182,212,0.15); }
+  
+  .btn {
+    padding: 0.75rem 1.2rem; border: none; border-radius: 6px; font-family: var(--font-display);
+    font-weight: 600; cursor: pointer; transition: all 0.2s; font-size: 0.9rem;
+  }
+  .btn-primary { background: var(--accent-primary); color: #000; }
+  .btn-primary:hover { background: #22d3ee; transform: translateY(-1px); }
+  .btn-ghost { background: transparent; color: var(--text-muted); border: 1px solid var(--border); }
+  .btn-ghost:hover { border-color: var(--text-muted); color: var(--text-main); }
+  .btn.active { background: rgba(6,182,212,.15); border-color: var(--accent-primary); color: var(--accent-primary); }
+
+  /* Métricas */
+  .metrics {
+    display: grid; grid-template-columns: repeat(4, 1fr); gap: 1.5rem; margin-bottom: 2rem;
+  }
+  @media(max-width: 900px) { .metrics { grid-template-columns: repeat(2, 1fr); } }
+  .metric-card {
+    background: var(--bg-card); border: 1px solid var(--border); border-radius: 8px; padding: 1.5rem;
+  }
+  .metric-label { color: var(--text-muted); font-size: 0.85rem; font-family: var(--font-mono); margin-bottom: 0.5rem; }
+  .metric-value { font-family: var(--font-mono); font-size: 1.8rem; font-weight: 700; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .c-cyan { color: var(--accent-primary); } .c-green { color: var(--accent-success); } .c-amber { color: var(--accent-warning); }
+
+  /* Tablas */
+  .table-container { overflow-x: auto; border: 1px solid var(--border); border-radius: 6px; }
+  table { width: 100%; border-collapse: collapse; font-family: var(--font-mono); font-size: 0.85rem; }
+  th { background: #1f2937; color: var(--text-muted); text-align: right; padding: 0.75rem 1rem; font-weight: 500; border-bottom: 1px solid var(--border); white-space: nowrap; }
+  th:first-child { text-align: left; }
+  td { padding: 0.6rem 1rem; text-align: right; border-bottom: 1px solid #1f2937; color: #d1d5db; }
+  td:first-child { text-align: left; color: var(--text-muted); }
+  tr:last-child td { border-bottom: none; }
+  tr:hover td { background: rgba(255,255,255,0.02); }
+  tr.current td { background: rgba(6, 182, 212, 0.1); color: var(--accent-primary); font-weight: 600; }
+  td.skip { text-align: center !important; color: var(--text-muted); font-style: italic; }
+
+  /* Gráficos y Cálculos */
+  .chart-wrapper { background: var(--bg-card); border: 1px solid var(--border); border-radius: 8px; padding: 1rem; height: 400px; margin-top: 1rem; }
+  .chart-wrapper.short { height: 350px; }
+  
+  .formula-box {
+    background: rgba(0,0,0,0.3); border: 1px solid var(--border); border-radius: 6px;
+    padding: 1rem; margin-top: 1rem; font-family: var(--font-mono); font-size: 0.9rem; color: var(--accent-primary);
+    display: grid; gap: 0.5rem; overflow-x: auto; white-space: nowrap;
+  }
+  .badge { display: inline-block; margin-left: 8px; padding: 2px 8px; border-radius: 4px; font-size: 0.75rem; font-family: var(--font-mono); }
+  .badge.ok { background: rgba(16,185,129,.18); color: var(--accent-success); }
+  .badge.bad { background: rgba(245,158,11,.18); color: var(--accent-warning); }
+  
+  .error-msg { color: var(--accent-danger); font-size: 0.9rem; margin-top: 0.5rem; min-height: 1.2em; font-family: var(--font-mono); }
+  .note { color: var(--text-muted); font-size: 0.85rem; margin-top: 1rem; line-height: 1.6; }
+
+  #toast {
+    position: fixed; right: 20px; bottom: 20px; background: var(--bg-card); color: var(--accent-success);
+    border: 1px solid var(--accent-success); border-radius: 8px; padding: 12px 20px;
+    font-size: 0.9rem; opacity: 0; transform: translateY(10px); pointer-events: none; transition: all 0.3s; z-index: 100;
+  }
+  #toast.show { opacity: 1; transform: none; }
+
+  [hidden] { display: none !important; }
+  .session-tabs { display:flex; gap:12px; flex-wrap:wrap; margin-bottom:24px; }
+  .session-tabs button { padding:14px 22px; }
+</style>
+</head>
+<body>
+
+<div class="container">
+  <header>
+    <div>
+      <h1>INTEGRACIÓN NUMÉRICA</h1>
+      <div class="subtitle">Sesiones 12 y 13 · Trapecio y Simpson 1/3 compuesto</div>
+    </div>
+    <div style="font-family: var(--font-mono); color: var(--accent-primary); font-size: 0.8rem;">v1.0</div>
+  </header>
+
+
+
+  <nav class="session-tabs" id="sessionTabs" role="tablist" aria-label="Sesiones del curso">
+    <button type="button" class="btn btn-ghost" id="tab12" role="tab" aria-selected="false" aria-controls="session12">Sesión 12 · Trapecio</button>
+    <button type="button" class="btn btn-ghost active" id="tab13" role="tab" aria-selected="true" aria-controls="session13">Sesión 13 · Simpson 1/3</button>
+  </nav>
+  <div id="session13" role="tabpanel" aria-labelledby="tab13">
+  <section class="panel" id="sesion13">
+    <div class="panel-title">Sesión 13 · Simpson 1/3 compuesto · Consumo energético</div>
+    <div class="problem-info">Un centro de datos registra su potencia durante 6 horas.<br>
+    <code>P(t) = 10 + 5t·sin(πt/6) + exp(0.2t)</code> (kW). Energía: E = ∫ P(t) dt (kWh).</div>
+    <div class="grid-in">
+      <div class="field"><label for="s13a">Límite inferior a (h)</label><input id="s13a" type="number" value="0" step="any"></div>
+      <div class="field"><label for="s13b">Límite superior b (h)</label><input id="s13b" type="number" value="6" step="any"></div>
+      <div class="field"><label for="s13n">Subintervalos n (entero par)</label><input id="s13n" type="number" value="6" min="2" max="10000" step="2"></div>
+      <div class="field"><label for="s13m">M de la guía (kW/h⁴)</label><input id="s13m" type="number" value="0.45" step="any" min="0"></div>
+    </div>
+    <div style="display:flex;gap:12px;flex-wrap:wrap;margin-top:20px">
+      <button class="btn btn-primary" id="s13calc">Calcular Simpson</button>
+      <button class="btn btn-ghost" id="s13reset">Restaurar sesión 13</button>
+      <button class="btn btn-ghost" id="s13csv">Exportar convergencia CSV</button>
+
+    </div>
+    <p class="error-msg" id="s13error" role="alert"></p>
+    <div id="s13results" aria-live="polite"></div>
+    <div id="s13plotPanel" hidden>
+      <h3 style="margin:24px 0 12px">Potencia y aproximación de Simpson</h3>
+      <p class="note">Azul: P(t). Verde: parábolas de Simpson y área aproximada. Cada parábola utiliza tres nodos consecutivos.</p>
+      <div class="chart-wrapper"><canvas id="s13plot" role="img" aria-label="Gráfica de potencia P(t) en kilovatios frente al tiempo en horas y parábolas de Simpson" style="width:100%;height:100%"></canvas></div>
+      <p id="s13plotInfo" class="note"></p>
+    </div>
+    <p class="note">La guía proporciona M ≈ 0.45, pero no es una cota válida para esta función en [0,6]: |P⁽⁴⁾(6)| ≈ 2.876264 &gt; 0.45. Se muestra la cota solicitada y, por separado, una cota conservadora válida. El dato M introducido solo garantiza el error si acota |P⁽⁴⁾| en todo el intervalo.</p>
+  </section>
+  </div>
+  <div id="session12" role="tabpanel" aria-labelledby="tab12" hidden>
+  <div id="sesion12" class="panel-title">Sesión 12 · Proyecto anterior: Trapecio compuesto</div>
+
+  <!-- PROBLEMA -->
+  <section class="panel">
+    <div class="panel-title">📡 Contexto del Problema</div>
+    <div class="problem-info">
+      Estimación del tráfico total de red $D = \int_0^{12} R(t)\,dt$ en un servidor web durante un pico de demanda.<br>
+      Función: <code>R(t) = 10 + 5·sin(π·t/4) + e^(0.15·t)</code> (Mbps)
+    </div>
+
+    <div class="grid-in">
+      <div class="field">
+        <label for="fInput">Función f(t)</label>
+        <input type="text" id="fInput" spellcheck="false" autocomplete="off" value="10 + 5*sin(pi*t/4) + exp(0.15*t)">
+      </div>
+      <div class="field">
+        <label for="aInput">Límite inferior a</label>
+        <input type="text" id="aInput" inputmode="decimal" autocomplete="off" value="0">
+      </div>
+      <div class="field">
+        <label for="bInput">Límite superior b</label>
+        <input type="text" id="bInput" inputmode="decimal" autocomplete="off" value="12">
+      </div>
+      <div class="field">
+        <label for="exInput">Valor exacto (opcional)</label>
+        <input type="text" id="exInput" inputmode="decimal" autocomplete="off" placeholder="Analítico">
+      </div>
+    </div>
+    
+    <div style="display: flex; gap: 0.75rem; margin-top: 1.5rem; flex-wrap: wrap; align-items: center;">
+      <button class="btn btn-primary" id="btnApply" type="button">Aplicar y Calcular</button>
+      <button class="btn btn-ghost" id="btnReset" type="button">Restaurar Ejemplo Guía</button>
+      <select id="exampleSel" style="width: auto;">
+        <option value="">Otros ejemplos...</option>
+        <option value="0">sen(t) en [0, π]</option>
+        <option value="1">t² en [0, 3]</option>
+        <option value="2">exp(−t²) en [0, 2]</option>
+        <option value="3">1/(1 + t²) en [0, 1]</option>
+      </select>
+    </div>
+    <div class="error-msg" id="errMsg" role="alert"></div>
+  </section>
+
+  <!-- MÉTRICAS -->
+  <section class="metrics" aria-live="polite">
+    <div class="metric-card"><div class="metric-label" id="mRefLabel">Valor de Referencia</div><div class="metric-value c-cyan"><span id="mExact">—</span></div></div>
+    <div class="metric-card"><div class="metric-label">Aproximación I (n = <span id="mN">4</span>)</div><div class="metric-value c-green"><span id="mApprox">—</span></div></div>
+    <div class="metric-card"><div class="metric-label">Error Absoluto E_abs</div><div class="metric-value c-amber"><span id="mAbs">—</span></div></div>
+    <div class="metric-card"><div class="metric-label">Error Porcentual E_%</div><div class="metric-value c-amber"><span id="mPct">—</span>%</div></div>
+  </section>
+
+  <!-- GRÁFICA PRINCIPAL -->
+  <section class="panel">
+    <div class="panel-title">📈 Región de Integración y Trapecios</div>
+    <p style="color: var(--text-muted); margin-bottom: 1rem;">Paso actual: h = <span id="hVal" style="font-family:var(--font-mono); color: var(--accent-primary);">—</span></p>
+    
+    <div style="display: flex; gap: 1.5rem; align-items: end; flex-wrap: wrap; margin-bottom: 1rem;">
+      <div class="field" style="flex: 1; min-width: 250px;">
+        <label for="nSlider">Subintervalos n (deslizador)</label>
+        <input type="range" id="nSlider" min="2" max="200" step="1" value="4" style="width: 100%; accent-color: var(--accent-primary);">
+      </div>
+      <div class="field" style="width: 120px;">
+        <label for="nInput">n (1 a 1000)</label>
+        <input type="number" id="nInput" min="1" max="1000" step="1" value="4">
+      </div>
+      <div id="presets" style="display: flex; gap: 0.5rem; flex-wrap: wrap;"></div>
+    </div>
+
+    <div class="chart-wrapper"><canvas id="chartCurve"></canvas></div>
+  </section>
+
+  <!-- DESGLOSE PASO A PASO -->
+  <section class="panel">
+    <div class="panel-title">🔢 Desglose Paso a Paso (n = <span id="stepN">4</span>)</div>
+    <p id="stepSub" style="color: var(--text-muted); margin-bottom: 1rem; font-size: 0.9rem;"></p>
+    
+    <div class="table-container">
+      <table>
+        <thead><tr><th>i</th><th>t_i</th><th>f(t_i)</th><th>Peso</th><th>Peso × f(t_i)</th></tr></thead>
+        <tbody id="stepBody"></tbody>
+      </table>
+    </div>
+    <div class="formula-box" id="stepCalc"></div>
+  </section>
+
+  <!-- CONVERGENCIA -->
+  <section class="panel">
+    <div class="panel-title">📊 Análisis de Convergencia</div>
+    <p id="convSub" style="color: var(--text-muted); margin-bottom: 1rem; font-size: 0.9rem;"></p>
+    
+    <div class="table-container">
+      <table>
+        <thead><tr><th>n</th><th>h = (b − a)/n</th><th>I_trapecio</th><th>E_abs</th><th>E_% (%)</th><th>Orden empírico p</th></tr></thead>
+        <tbody id="convBody"></tbody>
+      </table>
+    </div>
+    <p class="note">p = log(E_{k−1}/E_k) / log(n_k/n_{k−1}). Con error O(h²) se espera p cercano a 2 cuando n crece.</p>
+    
+    <div style="display: flex; gap: 0.75rem; margin-top: 1.5rem;">
+      <button class="btn btn-primary" id="btnCsv" type="button">Exportar CSV</button>
+      <button class="btn btn-ghost" id="btnCopy" type="button">Copiar Tabla</button>
+    </div>
+  </section>
+
+  <!-- ERROR LOG-LOG -->
+  <section class="panel">
+    <div class="panel-title">📉 Decaimiento del Error (Log-Log)</div>
+    <p style="color: var(--text-muted); margin-bottom: 1rem; font-size: 0.9rem;">Error porcentual frente a n. La línea punteada marca la pendiente −2 de un método O(h²).</p>
+    <div class="chart-wrapper short"><canvas id="chartError"></canvas></div>
+    <p class="note" id="errNote"></p>
+  </section>
+</div>
+
+</div>
+<div id="toast" role="status"></div>
+
+<script>
+(() => {
+  'use strict';
+
+  /* =====================================================
+     PARSER SEGURO (Sin eval)
+     ===================================================== */
+  const FUNCS = {
+    sin: Math.sin, sen: Math.sin, cos: Math.cos, tan: Math.tan,
+    asin: Math.asin, acos: Math.acos, atan: Math.atan,
+    sinh: Math.sinh, cosh: Math.cosh, tanh: Math.tanh,
+    exp: Math.exp, ln: Math.log, log: Math.log10, sqrt: Math.sqrt, abs: Math.abs
+  };
+  const CONSTS = { pi: Math.PI, e: Math.E };
+
+  function tokenize(src) {
+    const s = src.replace(/(\d),(\d)/g, '$1.$2').replace(/π/g, ' pi ');
+    const tk = []; let i = 0;
+    while (i < s.length) {
+      const c = s[i];
+      if (/\s/.test(c)) { i++; continue; }
+      const rest = s.slice(i); let m;
+      if ((m = /^(\d+\.?\d*|\.\d+)([eE][+-]?\d+)?/.exec(rest))) { tk.push({ t: 'num', v: parseFloat(m[0]) }); i += m[0].length; continue; }
+      if ((m = /^[A-Za-z]+/.exec(rest))) { tk.push({ t: 'id', v: m[0].toLowerCase() }); i += m[0].length; continue; }
+      if (rest.startsWith('**')) { tk.push({ t: 'op', v: '^' }); i += 2; continue; }
+      if ('+-*/^()'.includes(c)) { tk.push({ t: 'op', v: c }); i++; continue; }
+      throw new Error(`Carácter no válido: "${c}"`);
+    }
+    return tk;
+  }
+
+  function compile(src, allowVar) {
+    if (!src || !src.trim()) throw new Error('Escribe una expresión.');
+    const tk = tokenize(src); let p = 0;
+    const peek = () => tk[p];
+    const next = () => tk[p++];
+    const isOp = v => peek() && peek().t === 'op' && peek().v === v;
+    const startsOperand = () => peek() && (peek().t === 'num' || peek().t === 'id' || isOp('('));
+    const close = () => { if (!isOp(')')) throw new Error('Falta cerrar paréntesis.'); next(); };
+
+    function expr() {
+      let l = term();
+      while (isOp('+') || isOp('-')) {
+        const o = next().v, L = l, r = term();
+        l = o === '+' ? t => L(t) + r(t) : t => L(t) - r(t);
+      }
+      return l;
+    }
+    function term() {
+      let l = unary();
+      for (;;) {
+        if (isOp('*')) { next(); const L = l, r = unary(); l = t => L(t) * r(t); }
+        else if (isOp('/')) { next(); const L = l, r = unary(); l = t => L(t) / r(t); }
+        else if (startsOperand()) { const L = l, r = power(); l = t => L(t) * r(t); }
+        else break;
+      }
+      return l;
+    }
+    function unary() {
+      if (isOp('-')) { next(); const u = unary(); return t => -u(t); }
+      if (isOp('+')) { next(); return unary(); }
+      return power();
+    }
+    function power() {
+      const b = primary();
+      if (isOp('^')) { next(); const e = unary(); return t => Math.pow(b(t), e(t)); }
+      return b;
+    }
+    function primary() {
+      const k = next();
+      if (!k) throw new Error('Expresión incompleta.');
+      if (k.t === 'num') return () => k.v;
+      if (k.t === 'id') {
+        const name = k.v;
+        if (FUNCS[name]) {
+          if (!isOp('(')) throw new Error(`Falta paréntesis tras "${name}".`);
+          next(); const a = expr(); close(); const fn = FUNCS[name];
+          return t => fn(a(t));
+        }
+        if (name in CONSTS) return () => CONSTS[name];
+        if (name === 't' || name === 'x') {
+          if (!allowVar) throw new Error('Los límites deben ser números, sin variable t.');
+          return t => t;
+        }
+        throw new Error(`Nombre desconocido: "${name}".`);
+      }
+      if (k.v === '(') { const a = expr(); close(); return a; }
+      throw new Error(`Símbolo inesperado: "${k.v}".`);
+    }
+    const f = expr();
+    if (p < tk.length) throw new Error(`Símbolo inesperado al final: "${tk[p].v}".`);
+    return f;
+  }
+
+  const constValue = src => compile(src, false)(0);
+
+  /* =====================================================
+     LÓGICA NUMÉRICA
+     ===================================================== */
+  function trapecio_compuesto(f, a, b, n) {
+    const h = (b - a) / n;
+    let suma = f(a) + f(b);
+    for (let i = 1; i < n; i++) suma += 2 * f(a + i * h);
+    return (h / 2) * suma;
+  }
+
+  function simpsonRef(f, a, b, n = 200000) {
+    const h = (b - a) / n;
+    let s = f(a) + f(b);
+    for (let i = 1; i < n; i++) s += (i % 2 ? 4 : 2) * f(a + i * h);
+    return (h / 3) * s;
+  }
+
+  // Antiderivada analítica exacta del problema de la guía
+  const F_GUIA = t => 10 * t - (20 / Math.PI) * Math.cos(Math.PI * t / 4) + Math.exp(0.15 * t) / 0.15;
+
+  /* =====================================================
+     ESTADO Y RENDERIZADO
+     ===================================================== */
+  const NS = [4, 10, 50, 100, 1000];
+  const GUIA = { f: '10 + 5*sin(pi*t/4) + exp(0.15*t)', a: '0', b: '12', ex: '' };
+  const EJEMPLOS = [
+    { f: 'sin(t)', a: '0', b: 'pi' },
+    { f: 't^2', a: '0', b: '3' },
+    { f: 'exp(-t^2)', a: '0', b: '2' },
+    { f: '1/(1 + t^2)', a: '0', b: '1' }
+  ];
+  const norm = s => s.replace(/\s+/g, '').toLowerCase();
+
+  let P = null; 
+  let rows = [];
+  let currentN = 4;
+
+  const $ = id => document.getElementById(id);
+  const fx = (x, d) => Number.isFinite(x) ? x.toFixed(d) : '—';
+  const fmtNum = x => String(Number(x.toPrecision(10)));
+  const fmtH = h => String(Number(h.toPrecision(5)));
+  const EPS = 1e-11;
+
+  function buildProblem(fstr, astr, bstr, exstr) {
+    const f = compile(fstr, true);
+    const a = constValue(astr), b = constValue(bstr);
+    if (!Number.isFinite(a) || !Number.isFinite(b)) throw new Error('Límites inválidos.');
+    if (a >= b) throw new Error('Se requiere a < b.');
+    
+    const isGuia = norm(fstr) === norm(GUIA.f);
+    let ref, refKind;
+    if (exstr && exstr.trim()) {
+      ref = constValue(exstr); refKind = 'ingresado';
+    } else if (isGuia) {
+      ref = F_GUIA(b) - F_GUIA(a); refKind = 'analitico';
+    } else {
+      ref = simpsonRef(f, a, b); refKind = 'numerico';
+    }
+    return { f, fstr: fstr.trim(), a, b, ref, refKind, isGuia, unit: isGuia ? ' Mb' : '' };
+  }
+
+  /* Chart.js Config Global */
+  Chart.defaults.color = '#9ca3af';
+  Chart.defaults.font.family = "'Outfit', sans-serif";
+  Chart.defaults.borderColor = '#374151';
+
+  const verticalLines = {
+    id: 'verticalLines',
+    afterDatasetsDraw(chart) {
+      const ds = chart.data.datasets[1];
+      if (!ds || ds.data.length > 150) return;
+      const { ctx, scales: { x, y } } = chart;
+      ctx.save();
+      ctx.strokeStyle = 'rgba(16,185,129,.4)'; ctx.lineWidth = 1;
+      const base = y.getPixelForValue(0);
+      ds.data.forEach(p => {
+        const px = x.getPixelForValue(p.x);
+        ctx.beginPath(); ctx.moveTo(px, base); ctx.lineTo(px, y.getPixelForValue(p.y)); ctx.stroke();
+      });
+      ctx.restore();
+    }
+  };
+
+  const chartCurve = new Chart($('chartCurve'), {
+    type: 'line',
+    data: { datasets: [
+      { label: 'f(t) Real', data: [], borderColor: '#06b6d4', backgroundColor: 'rgba(6,182,212,.1)', fill: 'origin', pointRadius: 0, borderWidth: 3, tension: 0.4, order: 2 },
+      { label: 'Trapecios', data: [], borderColor: '#10b981', backgroundColor: 'rgba(16,185,129,.15)', fill: 'origin', borderWidth: 2, pointRadius: 3, pointBackgroundColor: '#10b981', tension: 0, order: 1 }
+    ] },
+    options: {
+      responsive: true, maintainAspectRatio: false, parsing: false, animation: { duration: 300 },
+      scales: { x: { type: 'linear' }, y: { type: 'linear' } },
+      interaction: { mode: 'nearest', intersect: false },
+      plugins: { legend: { labels: { usePointStyle: true, boxWidth: 8 } } }
+    },
+    plugins: [verticalLines]
+  });
+
+  const chartError = new Chart($('chartError'), {
+    type: 'line',
+    data: { datasets: [
+      { label: 'Error %', data: [], borderColor: '#f59e0b', backgroundColor: '#f59e0b', pointRadius: 5, borderWidth: 3, tension: 0, order: 2 },
+      { label: 'Ref O(h²)', data: [], borderColor: '#9ca3af', borderDash: [6, 5], pointRadius: 0, borderWidth: 2, order: 3 },
+      { label: 'n Actual', data: [], showLine: false, pointStyle: 'rectRot', pointRadius: 8, borderColor: '#06b6d4', backgroundColor: '#06b6d4', borderWidth: 2, order: 1 }
+    ] },
+    options: {
+      responsive: true, maintainAspectRatio: false, parsing: false, animation: { duration: 300 },
+      scales: {
+        x: { type: 'logarithmic', min: 3, max: 1200, title: { display: true, text: 'n (subintervalos)' },
+             afterBuildTicks: ax => { ax.ticks = NS.map(v => ({ value: v })); }, ticks: { callback: v => v } },
+        y: { type: 'logarithmic', title: { display: true, text: 'Error % (log)' } }
+      },
+      plugins: { legend: { labels: { usePointStyle: true, boxWidth: 8 } } }
+    }
+  });
+
+  function computeRows() {
+    rows = [];
+    NS.forEach((n, k) => {
+      const I = trapecio_compuesto(P.f, P.a, P.b, n);
+      const e = Math.abs(P.ref - I);
+      const pct = Math.abs(P.ref) > 1e-12 ? e / Math.abs(P.ref) * 100 : NaN;
+      let p = null;
+      if (k > 0) {
+        const prev = rows[k - 1];
+        if (prev.e > EPS && e > EPS) p = Math.log(prev.e / e) / Math.log(n / prev.n);
+      }
+      rows.push({ n, h: (P.b - P.a) / n, I, e, pct, p });
+    });
+  }
+
+  function renderConv() {
+    $('convBody').innerHTML = rows.map(r => `
+      <tr class="${r.n === currentN ? 'current' : ''}">
+        <td>${r.n}</td><td>${fmtH(r.h)}</td><td>${fx(r.I, 6)}</td>
+        <td>${fx(r.e, 6)}</td><td>${fx(r.pct, 4)}</td><td>${r.p === null ? '—' : fx(r.p, 3)}</td>
+      </tr>`).join('');
+    const src = { analitico: 'Solución Analítica Exacta', ingresado: 'Valor manual ingresado', numerico: 'Referencia Numérica (Simpson 200k)' }[P.refKind];
+    $('convSub').textContent = `Referencia: ${src}. Fila resaltada = n actual.`;
+  }
+
+  function renderSteps(n) {
+    const { f, a, b } = P;
+    const h = (b - a) / n;
+    $('stepN').textContent = n;
+    $('stepSub').innerHTML = `Malla t_i = a + i·h con h = (${fmtNum(b)} − ${fmtNum(a)})/${n} = ${fmtH(h)}.`;
+
+    let sum = 0;
+    const lines = [];
+    for (let i = 0; i <= n; i++) {
+      const t = a + i * h, y = f(t), w = (i === 0 || i === n) ? 1 : 2;
+      sum += w * y;
+      lines.push({ i, t, y, w, wy: w * y });
+    }
+    const show = n <= 20 ? lines : [lines[0], lines[1], lines[2], null, lines[n - 1], lines[n]];
+    $('stepBody').innerHTML = show.map(r => r === null
+      ? `<tr><td colspan="5" class="skip">… ${n - 4} nodos intermedios omitidos …</td></tr>`
+      : `<tr><td>${r.i}</td><td>${fmtNum(r.t)}</td><td>${fx(r.y, 6)}</td><td>${r.w}</td><td>${fx(r.wy, 6)}</td></tr>`).join('');
+
+    const I = (h / 2) * sum;
+    const e = Math.abs(P.ref - I);
+    let badge = '';
+    if (P.isGuia && n === 4) {
+      const ok = Math.abs(I - 172.2885) < 0.001; 
+      badge = `<span class="badge ${ok ? 'ok' : 'bad'}">${ok ? 'Coincide con teoría' : 'Revisar cálculos'}</span>`;
+    }
+    $('stepCalc').innerHTML = `
+      <div>Suma ponderada Σ = ${fx(sum, 6)}</div>
+      <div>I = (h/2)·Σ = (${fmtH(h)}/2) × ${fx(sum, 6)} = <strong>${fx(I, 6)}${P.unit}</strong> ${badge}</div>
+      <div>E_abs = |${fx(P.ref, 6)} − ${fx(I, 6)}| = ${fx(e, 6)}</div>`;
+  }
+
+  function updateCharts() {
+    // Curva principal
+    const pts = [], N = 500;
+    let mn = Infinity, mx = -Infinity;
+    for (let i = 0; i <= N; i++) {
+      const t = P.a + (P.b - P.a) * i / N, y = P.f(t);
+      pts.push({ x: t, y });
+      if (Number.isFinite(y)) { mn = Math.min(mn, y); mx = Math.max(mx, y); }
+    }
+    const pad = (mx - mn || 1) * 0.1;
+    chartCurve.options.scales.x.min = P.a; chartCurve.options.scales.x.max = P.b;
+    chartCurve.options.scales.y.min = Math.min(0, mn - pad); chartCurve.options.scales.y.max = mx + pad;
+    chartCurve.data.datasets[0].data = pts;
+
+    // Error Log-Log
+    const valid = rows.filter(r => Number.isFinite(r.pct) && r.e > EPS);
+    chartError.data.datasets[0].data = valid.map(r => ({ x: r.n, y: r.pct }));
+    const ref = [];
+    if (valid.length) {
+      const r0 = valid[0];
+      for (let i = 0; i <= 60; i++) { const n = r0.n * Math.pow(1000 / r0.n, i / 60); ref.push({ x: n, y: r0.pct * Math.pow(r0.n / n, 2) }); }
+    }
+    chartError.data.datasets[1].data = ref;
+    $('errNote').textContent = valid.length < rows.length ? 'Nota: Algunos errores son ~0 y no se grafican en escala log.' : '';
+  }
+
+  function setN(raw) {
+    let n = Math.round(Number(raw));
+    if (!Number.isFinite(n) || !P) return;
+    n = Math.min(1000, Math.max(1, n));
+    currentN = n;
+    $('nInput').value = n;
+    $('nSlider').value = Math.min(200, Math.max(2, n));
+
+    const h = (P.b - P.a) / n;
+    const I = trapecio_compuesto(P.f, P.a, P.b, n);
+    const e = Math.abs(P.ref - I);
+    const pct = Math.abs(P.ref) > 1e-12 ? e / Math.abs(P.ref) * 100 : NaN;
+
+    $('mExact').textContent = fx(P.ref, 6);
+    $('mApprox').textContent = fx(I, 6) + P.unit;
+    $('mAbs').textContent = fx(e, 6);
+    $('mPct').textContent = fx(pct, 4);
+    $('mN').textContent = n;
+    $('hVal').textContent = fmtH(h);
+
+    // Actualizar puntos trapecio en gráfica
+    const nodes = [];
+    for (let i = 0; i <= n; i++) nodes.push({ x: P.a + i * h, y: P.f(P.a + i * h) });
+    const ds = chartCurve.data.datasets[1];
+    ds.data = nodes;
+    ds.pointRadius = n <= 30 ? 4 : 0;
+    chartCurve.update();
+
+    chartError.data.datasets[2].data = (Number.isFinite(pct) && e > EPS) ? [{ x: n, y: pct }] : [];
+    chartError.update();
+
+    renderSteps(n);
+    renderConv();
+    $('presets').querySelectorAll('button').forEach(b => b.classList.toggle('active', Number(b.dataset.n) === n));
+  }
+
+  function applyProblem() {
+    try {
+      P = buildProblem($('fInput').value, $('aInput').value, $('bInput').value, $('exInput').value);
+      $('errMsg').textContent = '';
+      $('mRefLabel').textContent = ({ analitico: 'Valor Exacto (Analítico)', ingresado: 'Valor Exacto (Manual)', numerico: 'Ref. Numérica (Simpson)' })[P.refKind];
+      computeRows();
+      updateCharts();
+      setN(currentN);
+    } catch (err) {
+      $('errMsg').textContent = '⚠️ ' + err.message;
+    }
+  }
+
+  /* Eventos */
+  NS.forEach(n => {
+    const b = document.createElement('button');
+    b.className = 'btn btn-ghost'; b.textContent = 'n=' + n; b.dataset.n = n;
+    b.onclick = () => setN(n);
+    $('presets').appendChild(b);
+  });
+
+  $('nSlider').oninput = e => setN(e.target.value);
+  $('nInput').onchange = e => setN(e.target.value || 4);
+  $('btnApply').onclick = applyProblem;
+  ['fInput', 'aInput', 'bInput', 'exInput'].forEach(id => $(id).onkeydown = e => { if(e.key==='Enter') applyProblem(); });
+
+  function loadInputs(o) {
+    $('fInput').value = o.f; $('aInput').value = o.a; $('bInput').value = o.b; $('exInput').value = o.ex || '';
+    applyProblem();
+  }
+  $('btnReset').onclick = () => { $('exampleSel').value = ''; loadInputs(GUIA); };
+  $('exampleSel').onchange = e => { if (e.target.value !== '') loadInputs(EJEMPLOS[Number(e.target.value)]); };
+
+  function toast(msg) {
+    const t = $('toast'); t.textContent = msg; t.classList.add('show');
+    clearTimeout(toast._id); toast._id = setTimeout(() => t.classList.remove('show'), 2500);
+  }
+  $('btnCsv').onclick = () => {
+    const csv = [['n','h','I','E_abs','E_pct','p'], ...rows.map(r => [r.n, fmtH(r.h), fx(r.I,6), fx(r.e,6), fx(r.pct,4), r.p===null?'':fx(r.p,3)])].map(r=>r.join(',')).join('\n');
+    const a = document.createElement('a'); a.href = URL.createObjectURL(new Blob(['\ufeff'+csv],{type:'text/csv'}));
+    a.download = 'trapecio_convergencia.csv'; a.click(); toast('CSV descargado');
+  };
+  $('btnCopy').onclick = async () => {
+    const txt = [['n','h','I','E_abs','E_pct','p'], ...rows.map(r => [r.n, fmtH(r.h), fx(r.I,6), fx(r.e,6), fx(r.pct,4), r.p===null?'':fx(r.p,3)])].map(r=>r.join('\t')).join('\n');
+    try { await navigator.clipboard.writeText(txt); toast('Tabla copiada al portapapeles'); } catch(_) { toast('Error al copiar'); }
+  };
+
+  // Init
+  loadInputs(GUIA);
+})();
+</script>
+
+<script>
+(() => {
+  'use strict';
+  const el=id=>document.getElementById(id), k=Math.PI/6;
+  const power=t=>10+5*t*Math.sin(k*t)+Math.exp(.2*t);
+  const primitive=t=>10*t-5*t*Math.cos(k*t)/k+5*Math.sin(k*t)/(k*k)+5*Math.exp(.2*t);
+  function validateN(n) {
+    if(!Number.isInteger(n)||n<2||n%2!==0) throw new Error('n debe ser un número entero par mayor o igual que 2. Se detuvo el cálculo.');
+    if(n>10000) throw new Error('Usa n ≤ 10000 para mantener una respuesta fluida.');
+  }
+  function simpson(f,a,b,n) {
+    validateN(n);
+    const h=(b-a)/n;
+    // Coeficientes vectorizados: [1,4,2,4,...,2,4,1].
+    const coefficients=Array.from({length:n+1},(_,i)=>i===0||i===n?1:i%2?4:2);
+    const nodes=coefficients.map((w,i)=>({i,t:a+i*h,w,y:f(a+i*h)}));
+    if(nodes.some(p=>!Number.isFinite(p.y))) throw new Error('La función excede el rango numérico en este intervalo.');
+    const sum=nodes.reduce((acc,p)=>acc+p.w*p.y,0);
+    const value=h*sum/3;
+    if(!Number.isFinite(value)) throw new Error('El resultado excede el rango numérico.');
+    return {h,nodes,sum,value};
+  }
+  let rows=[];
+  const fmt=x=>x.toLocaleString('es-PE',{maximumFractionDigits:9});
+  const table=(heads,body)=>'<div class="table-container"><table><thead><tr>'+heads.map(h=>'<th>'+h+'</th>').join('')+'</tr></thead><tbody>'+body.map(r=>'<tr>'+r.map(c=>'<td>'+c+'</td>').join('')+'</tr>').join('')+'</tbody></table></div>';
+  let lastPlot=null;
+  function plotSimpson(a,b,n) {
+    lastPlot={a,b,n};
+    const canvas=el('s13plot'),box=canvas.getBoundingClientRect();
+    if(box.width<1)return;
+    const ratio=window.devicePixelRatio||1,W=box.width,H=box.height;
+    canvas.width=Math.round(W*ratio);canvas.height=Math.round(H*ratio);
+    const ctx=canvas.getContext('2d');ctx.scale(ratio,ratio);
+    const left=70,right=W-20,top=22,bottom=H-55,h=(b-a)/n;
+    const curve=Array.from({length:501},(_,i)=>{const t=a+(b-a)*i/500;return {t,y:power(t)}});
+    // Polynomial through the three nodes of each pair of subintervals.
+    const segments=[];
+    for(let i=0;i<n;i+=2) {
+      const t0=a+i*h,y0=power(t0),y1=power(t0+h),y2=power(t0+2*h);
+      const count=Math.max(4,Math.ceil(600/n));
+      segments.push(Array.from({length:count+1},(_,j)=>{
+        const u=2*j/count;
+        return {t:t0+u*h,y:y0*(u-1)*(u-2)/2-y1*u*(u-2)+y2*u*(u-1)/2};
+      }));
+    }
+    let lo=0,hi=0;
+    for(const pts of [curve,...segments])for(const p of pts){lo=Math.min(lo,p.y);hi=Math.max(hi,p.y)}
+    const pad=(hi-lo||1)*.08;lo-=pad;hi+=pad;
+    const x=t=>left+(t-a)/(b-a)*(right-left),y=v=>bottom-(v-lo)/(hi-lo)*(bottom-top);
+    ctx.clearRect(0,0,W,H);ctx.font='12px sans-serif';
+    for(let j=0;j<=5;j++) {
+      const yy=top+(bottom-top)*j/5,v=hi-(hi-lo)*j/5;
+      ctx.strokeStyle='#293548';ctx.beginPath();ctx.moveTo(left,yy);ctx.lineTo(right,yy);ctx.stroke();
+      ctx.fillStyle='#cbd5e1';ctx.textAlign='right';ctx.fillText(v.toLocaleString('es-PE',{maximumSignificantDigits:4}),left-8,yy+4);
+      const t=a+(b-a)*j/5;ctx.textAlign='center';ctx.fillText(t.toLocaleString('es-PE',{maximumSignificantDigits:4}),x(t),bottom+22);
+    }
+    for(const pts of segments) {
+      ctx.beginPath();ctx.moveTo(x(pts[0].t),y(0));for(const p of pts)ctx.lineTo(x(p.t),y(p.y));ctx.lineTo(x(pts.at(-1).t),y(0));ctx.closePath();ctx.fillStyle='rgba(16,185,129,.16)';ctx.fill();
+      ctx.beginPath();pts.forEach((p,i)=>i?ctx.lineTo(x(p.t),y(p.y)):ctx.moveTo(x(p.t),y(p.y)));ctx.strokeStyle='#10b981';ctx.lineWidth=2;ctx.stroke();
+    }
+    ctx.beginPath();curve.forEach((p,i)=>i?ctx.lineTo(x(p.t),y(p.y)):ctx.moveTo(x(p.t),y(p.y)));ctx.strokeStyle='#38bdf8';ctx.lineWidth=2;ctx.stroke();
+    if(n<=100)for(let i=0;i<=n;i++){const t=a+i*h;ctx.beginPath();ctx.arc(x(t),y(power(t)),3,0,2*Math.PI);ctx.fillStyle='#10b981';ctx.fill();}
+    ctx.fillStyle='#e2e8f0';ctx.textAlign='center';ctx.fillText('Tiempo t (h)',(left+right)/2,H-8);
+    ctx.save();ctx.translate(15,(top+bottom)/2);ctx.rotate(-Math.PI/2);ctx.fillText('Potencia P(t) (kW)',0,0);ctx.restore();
+    el('s13plotInfo').textContent=`n = ${n} · h = ${fmt(h)} h · ${n/2} parábolas. La curva azul y la aproximación verde se superponen al aumentar n.`;
+  }
+  window.addEventListener('resize',()=>{if(lastPlot&&!el('s13plotPanel').hidden)plotSimpson(lastPlot.a,lastPlot.b,lastPlot.n)});
+  function calculate() {
+    el('s13error').textContent=''; el('s13results').innerHTML=''; rows=[]; el('s13csv').disabled=true; el('s13plotPanel').hidden=true; lastPlot=null;
+    try {
+      for(const id of ['s13a','s13b','s13n','s13m']) if(!el(id).value.trim()) throw new Error('Completa todos los campos.');
+      const a=Number(el('s13a').value),b=Number(el('s13b').value),n=Number(el('s13n').value),m=Number(el('s13m').value);
+      validateN(n);
+      if(![a,b,m].every(Number.isFinite)||a>=b||m<0) throw new Error('Introduce límites finitos con a < b y M ≥ 0.');
+      const r=simpson(power,a,b,n),exact=primitive(b)-primitive(a);
+      // Cuarta derivada =5t k^4 sin(kt)-20k^3 cos(kt)+0.0016 exp(0.2t).
+      // Desigualdad triangular: cota conservadora válida para todo [a,b].
+      const safeM=5*Math.max(Math.abs(a),Math.abs(b))*k**4+20*k**3+.0016*Math.exp(.2*b);
+      const bound=(h,M)=>(b-a)*h**4*M/180;
+      if(!Number.isFinite(exact)||!Number.isFinite(safeM)||!Number.isFinite(bound(r.h,safeM))) throw new Error('Intervalo demasiado grande para el rango numérico.');
+      rows=[2,4,6,12,24].map(nn=>{const s=simpson(power,a,b,nn);return [nn,s.h,s.value,bound(s.h,m),Math.abs(s.value-exact),bound(s.h,safeM)];});
+      const visible=r.nodes.length<=101?r.nodes:[...r.nodes.slice(0,3),...r.nodes.slice(-3)];
+      el('s13results').innerHTML=`<div class="formula-box">
+        <div>h = (b − a)/n = ${fmt(r.h)} h</div>
+        <div>E ≈ (h/3) Σ cᵢP(tᵢ) = (${fmt(r.h)}/3) × ${fmt(r.sum)} = <strong>${fmt(r.value)} kWh</strong></div>
+        <div>Valor analítico: ${fmt(exact)} kWh · Error absoluto real: ${fmt(Math.abs(r.value-exact))} kWh</div>
+        <div>Cota con M introducido: (b − a)h⁴M/180 = ${fmt(bound(r.h,m))} kWh</div>
+        <div>Cota conservadora válida: ${fmt(bound(r.h,safeM))} kWh (M = ${fmt(safeM)})</div>
+      </div><h3 style="margin:24px 0 12px">Tabla de evaluación</h3>`+
+      table(['i','tᵢ (h)','P(tᵢ) (kW)','cᵢ','cᵢP(tᵢ)'],visible.map(p=>[p.i,fmt(p.t),fmt(p.y),p.w,fmt(p.w*p.y)]))+
+      (visible.length<r.nodes.length?'<p class="note">Se muestran los tres primeros y tres últimos nodos; el cálculo usa todos los nodos.</p>':'')+
+      '<h3 style="margin:24px 0 12px">Convergencia: n ∈ {2,4,6,12,24}</h3>'+
+      table(['n','h (h)','Simpson (kWh)','Cota con M introducido (kWh)','Error real (kWh)','Cota conservadora (kWh)'],rows.map(row=>row.map(fmt)))+
+      '<p class="note">La cota conservadora usa M = 5·max(|a|,|b|)(π/6)⁴ + 20(π/6)³ + 0.0016·exp(0.2b), por la desigualdad triangular. Simpson compuesto tiene error de orden O(h⁴).</p>';
+      el('s13csv').disabled=false;
+      el('s13plotPanel').hidden=false;plotSimpson(a,b,n);
+    } catch(error) {el('s13error').textContent=error.message;}
+  }
+  el('s13calc').onclick=calculate;
+  el('s13reset').onclick=()=>{['s13a','s13b','s13n','s13m'].forEach((id,i)=>el(id).value=String([0,6,6,.45][i]));calculate();};
+  ['s13a','s13b','s13n','s13m'].forEach(id=>el(id).addEventListener('keydown',e=>{if(e.key==='Enter')calculate();}));
+  el('s13csv').onclick=()=>{
+    if(!rows.length)return;
+    const csv='\ufeff'+[['n','h','Simpson_kWh','cota_M_introducido_kWh','error_real_kWh','cota_conservadora_kWh'],...rows].map(row=>row.join(',')).join('\r\n');
+    const url=URL.createObjectURL(new Blob([csv],{type:'text/csv;charset=utf-8'}));
+    const link=document.createElement('a');link.href=url;link.download='sesion13_simpson_convergencia.csv';link.click();setTimeout(()=>URL.revokeObjectURL(url),1000);
+  };
+  calculate();
+})();
+</script>
+
+
+<script>
+(() => {
+  const ids=['12','13'];
+  function selectSession(selected) {
+    ids.forEach(id=>{
+      const active=id===selected, tab=document.getElementById('tab'+id);
+      document.getElementById('session'+id).hidden=!active;
+      tab.setAttribute('aria-selected',String(active));
+      tab.classList.toggle('active',active);
+      tab.tabIndex=active?0:-1;
+    });
+    // Redimensiona los gráficos de la sesión 12 después de hacer visible su panel.
+    requestAnimationFrame(()=>window.dispatchEvent(new Event('resize')));
+  }
+  ids.forEach(id=>{
+    const tab=document.getElementById('tab'+id);
+    tab.addEventListener('click',()=>selectSession(id));
+    tab.addEventListener('keydown',event=>{
+      if(['ArrowLeft','ArrowRight','Home','End'].includes(event.key)) {
+        event.preventDefault();
+        const next=event.key==='Home'?'12':event.key==='End'?'13':id==='12'?'13':'12';
+        selectSession(next);document.getElementById('tab'+next).focus();
+      }
+    });
+  });
+  selectSession('13');
+})();
+</script>
+</body>
+</html>
